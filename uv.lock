@@ -224,6 +224,33 @@ wheels = [
 ]
 
 [[package]]
+name = "helpbot"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "aiogram" },
+    { name = "aioodbc" },
+    { name = "apscheduler" },
+    { name = "betterlogging" },
+    { name = "environs" },
+    { name = "pytz" },
+    { name = "redis" },
+    { name = "sqlalchemy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiogram", specifier = ">=3.21.0" },
+    { name = "aioodbc", specifier = ">=0.5.0" },
+    { name = "apscheduler", specifier = ">=3.11.0" },
+    { name = "betterlogging", specifier = ">=1.0.0" },
+    { name = "environs", specifier = ">=14.2.0" },
+    { name = "pytz", specifier = ">=2025.2" },
+    { name = "redis", specifier = ">=6.2.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.41" },
+]
+
+[[package]]
 name = "idna"
 version = "3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -409,33 +436,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3", size = 320884, upload-time = "2025-03-25T02:25:00.538Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00", size = 509225, upload-time = "2025-03-25T02:24:58.468Z" },
-]
-
-[[package]]
-name = "questionerbot"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "aiogram" },
-    { name = "aioodbc" },
-    { name = "apscheduler" },
-    { name = "betterlogging" },
-    { name = "environs" },
-    { name = "pytz" },
-    { name = "redis" },
-    { name = "sqlalchemy" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiogram", specifier = ">=3.21.0" },
-    { name = "aioodbc", specifier = ">=0.5.0" },
-    { name = "apscheduler", specifier = ">=3.11.0" },
-    { name = "betterlogging", specifier = ">=1.0.0" },
-    { name = "environs", specifier = ">=14.2.0" },
-    { name = "pytz", specifier = ">=2025.2" },
-    { name = "redis", specifier = ">=6.2.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.41" },
 ]
 
 [[package]]

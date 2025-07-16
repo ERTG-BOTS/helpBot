@@ -83,7 +83,8 @@ async def main_cb(callback: CallbackQuery, stp_db, state: FSMContext):
     await callback.message.edit_text(
         f"""Привет, <b>{user.FIO}</b>!
 
-Я - бот-вопросник
+Я - бот-помощник
+Меня можно использовать, чтобы сообщить о проблеме или неполадках с другими ботами
 
 Используй меню, чтобы выбрать действие""",
         reply_markup=user_kb(
@@ -156,15 +157,31 @@ async def question_text(message: Message, stp_db, state: FSMContext):
         question_text=state_data.get("question"),
     )  # Добавление вопроса в БД
 
-    # All database operations are now complete
+    admins_working = 0
+    for admin in config.tg_bot.admin_ids:
+        admin_db: User = await repo.users.get_user(user_id=admin)
+        is_admin_working = await repo.buffer.is_user_working_today(
+            fio=admin_db.FIO, division=admin_db.Division
+        )
+        if is_admin_working:
+            admins_working += 1
 
-
-    await message.answer(
-        """<b>✅ Успешно</b>
+    if admins_working > 0:
+        await message.answer(
+            """<b>✅ Успешно</b>
     
 Вопрос передан на рассмотрение, в скором времени тебе ответят""",
-        reply_markup=cancel_question_kb(token=new_question.Token),
-    )
+            reply_markup=cancel_question_kb(token=new_question.Token),
+        )
+    else:
+        await message.answer(
+            """<b>✅ Успешно</b>
+
+Вопрос передан на рассмотрение, однако <b>все ботоделы на выходном</b>
+
+Время ответа может быть увеличено""",
+            reply_markup=cancel_question_kb(token=new_question.Token),
+        )
 
     # Запускаем таймер неактивности для нового вопроса (только если статус "open")
     if new_question.Status == "open" and config.tg_bot.activity_status:

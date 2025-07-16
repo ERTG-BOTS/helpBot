@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 from environs import Env
 from sqlalchemy import URL
@@ -21,6 +21,7 @@ class TgBot:
     """
 
     token: str
+    admin_ids: list[int]
     use_redis: bool
 
     forum_id: str
@@ -37,7 +38,7 @@ class TgBot:
         token = env.str("BOT_TOKEN")
 
         # @TODO Replace admin_ids with db users which have role 10
-        # admin_ids = env.list("ADMINS", subcast=int)
+        admin_ids = env.list("ADMINS", subcast=int)
 
         use_redis = env.bool("USE_REDIS")
 
@@ -49,6 +50,7 @@ class TgBot:
 
         return TgBot(
             token=token,
+            admin_ids=admin_ids,
             use_redis=use_redis,
             forum_id=forum_id,
             activity_status=activity_status,

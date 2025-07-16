@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from infrastructure.database.repo.buffer import BufferRepo
 from infrastructure.database.repo.questions import QuestionsRepo
 from infrastructure.database.repo.users import UserRepo
 
@@ -29,3 +30,10 @@ class RequestsRepo:
         The QuestionsRepo repository sessions are required to manage dialog questions operations.
         """
         return QuestionsRepo(self.session)
+
+    @property
+    def buffer(self) -> BufferRepo:
+        """
+        The BufferRepo repository sessions are required to manage buffer operations.
+        """
+        return BufferRepo(self.session)

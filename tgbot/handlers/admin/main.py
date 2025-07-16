@@ -37,8 +37,6 @@ async def admin_start(message: Message, stp_db, state: FSMContext) -> None:
             employee_fullname=user.FIO
         )
 
-    division = "НТП" if config.tg_bot.division == "ntp" else "НЦК"
-
     state_data = await state.get_data()
 
     if "role" in state_data:
@@ -48,11 +46,7 @@ async def admin_start(message: Message, stp_db, state: FSMContext) -> None:
         await message.answer(
             f"""👋 Привет, <b>{user.FIO}</b>!
 
-Я - бот-вопросник {division}
-
-<b>❓ Ты задал вопросов:</b>
-- За день {employee_topics_today}
-- За месяц {employee_topics_month}
+Я - бот-вопросник
 
 Используй меню, чтобы выбрать действие""",
             reply_markup=user_kb(

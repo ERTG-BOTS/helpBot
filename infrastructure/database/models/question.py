@@ -22,9 +22,6 @@ class Question(Base, TableNameMixin):
         QuestionText (Mapped[str]): Текст вопроса.
         StartTime (Mapped[Optional[date]]): Время начала вопроса.
         EndTime (Mapped[Optional[date]]): Время окончания вопроса.
-        CleverLink (Mapped[Optional[str]]): Ссылка на clever (может быть None).
-        QualityEmployee (Mapped[Optional[bool]]): Качество вопроса от сотрудника (может быть None).
-        QualityDuty (Mapped[Optional[bool]]): Качество вопроса от дежурного (может быть None).
 
     Methods:
         __repr__(): Returns a string representation of the Question object.
@@ -35,7 +32,7 @@ class Question(Base, TableNameMixin):
     Inherited Methods:
         Inherits methods from Base and TableNameMixin classes, which provide additional functionality.
     """
-    __tablename__ = 'QuestionsNew'
+    __tablename__ = 'BotHelpQuestions'
 
     Token: Mapped[str] = mapped_column(String(255), primary_key=True)
     TopicId: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -45,10 +42,7 @@ class Question(Base, TableNameMixin):
     QuestionText: Mapped[str] = mapped_column(Unicode, nullable=False)
     StartTime: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     EndTime: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    CleverLink: Mapped[Optional[str]] = mapped_column(Unicode, nullable=True)
-    QualityEmployee: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-    QualityDuty: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     Status: Mapped[Optional[str]] = mapped_column(Unicode, nullable=True)
 
     def __repr__(self):
-        return f"<Question {self.Token} {self.TopicId} {self.TopicDutyFullname} {self.EmployeeFullname} {self.EmployeeChatId} {self.QuestionText} {self.StartTime} {self.EndTime} {self.CleverLink} {self.QualityEmployee} {self.QualityDuty} {self.Status}>"
+        return f"<Question {self.Token} {self.TopicId} {self.TopicDutyFullname} {self.EmployeeFullname} {self.EmployeeChatId} {self.QuestionText} {self.StartTime} {self.EndTime} {self.Status}>"

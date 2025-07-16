@@ -22,7 +22,6 @@ class TgBot:
 
     token: str
     use_redis: bool
-    division: str
 
     forum_id: str
 
@@ -41,7 +40,6 @@ class TgBot:
         # admin_ids = env.list("ADMINS", subcast=int)
 
         use_redis = env.bool("USE_REDIS")
-        division = env.str("DIVISION")
 
         forum_id = env.str("FORUM_ID")
 
@@ -49,12 +47,9 @@ class TgBot:
         activity_warn_minutes = env.int("ACTIVITY_WARN_MINUTES")
         activity_close_minutes = env.int("ACTIVITY_CLOSE_MINUTES")
 
-        if division != "НТП" and division != "НЦК":
-            raise ValueError("[CONFIG] DIVISION должен быть НТП или НЦК")
         return TgBot(
             token=token,
             use_redis=use_redis,
-            division=division,
             forum_id=forum_id,
             activity_status=activity_status,
             activity_warn_minutes=activity_warn_minutes,

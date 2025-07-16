@@ -36,25 +36,13 @@ async def main_cmd(message: Message, state: FSMContext, stp_db):
         repo = RequestsRepo(session)
         user: User = await repo.users.get_user(user_id=message.from_user.id)
 
-        employee_topics_today = await repo.questions.get_questions_count_today(
-            employee_fullname=user.FIO
-        )
-        employee_topics_month = await repo.questions.get_questions_count_last_month(
-            employee_fullname=user.FIO
-        )
-
-    division = "НТП" if config.tg_bot.division == "ntp" else "НЦК"
     state_data = await state.get_data()
 
     if user:
         await message.answer(
             f"""👋 Привет, <b>{user.FIO}</b>!
 
-Я - бот-вопросник {division}
-
-<b>❓ Ты задал вопросов:</b>
-- За день {employee_topics_today}
-- За месяц {employee_topics_month}
+Я - бот-помощник
 
 <i>Используй меню для управление ботом</i>""",
             reply_markup=user_kb(
@@ -90,17 +78,12 @@ async def main_cb(callback: CallbackQuery, stp_db, state: FSMContext):
             employee_fullname=user.FIO
         )
 
-    division = "НТП" if config.tg_bot.division == "ntp" else "НЦК"
     state_data = await state.get_data()
 
     await callback.message.edit_text(
         f"""Привет, <b>{user.FIO}</b>!
 
-Я - бот-вопросник {division}
-
-<b>❓ Ты задал вопросов:</b>
-- За день {employee_topics_today}
-- За месяц {employee_topics_month}
+Я - бот-вопросник
 
 Используй меню, чтобы выбрать действие""",
         reply_markup=user_kb(
@@ -146,78 +129,39 @@ async def question_text(message: Message, stp_db, state: FSMContext):
     # Отключаем кнопки на предыдущих шагах
     await disable_previous_buttons(message, state)
 
-    response_msg = await message.answer(
-        """<b>🗃️ Регламент</b>
-
-Прикрепи ссылку на регламент из клевера, по которому у тебя вопрос""",
-        reply_markup=back_kb(),
-    )
-
-    state_data = await state.get_data()
-    messages_with_buttons = state_data.get("messages_with_buttons", [])
-    messages_with_buttons.append(response_msg.message_id)
-    await state.update_data(messages_with_buttons=messages_with_buttons)
-
-    await state.set_state(AskQuestion.clever_link)
-    logging.info(
-        f"{'[Админ]' if state_data.get('role') or employee.Role == 10 else '[Юзер]'} {message.from_user.username} ({message.from_user.id}): Открыто меню уточнения регламента"
-    )
-
-
-@user_router.message(AskQuestion.clever_link)
-async def clever_link_handler(message: Message, state: FSMContext, stp_db):
-    clever_link = message.text
     state_data = await state.get_data()
 
-    # Create a single session for all database operations
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        user: User = await repo.users.get_user(user_id=message.from_user.id)
+    employee_topics_today = await repo.questions.get_questions_count_today(
+        employee_fullname=employee.FIO
+    )
+    employee_topics_month = await repo.questions.get_questions_count_last_month(
+        employee_fullname=employee.FIO
+    )
 
-        # Проверяем есть ли ссылка на Клевер в сообщении специалиста или является ли пользователь Рутом
-        if "clever.ertelecom.ru/content/space/" not in message.text and user.Role != 10:
-            await message.answer(
-                """<b>🗃️ Регламент</b>
+    # Выключаем все предыдущие кнопки
+    await disable_previous_buttons(message, state)
 
-Сообщение <b>не содержит ссылку на клевер</b> 🥺
+    new_topic = await message.bot.create_forum_topic(
+        chat_id=config.tg_bot.forum_id,
+        name=employee.FIO,
+        icon_custom_emoji_id=dicts.topicEmojis["open"],
+    )  # Создание темы
 
-Отправь ссылку на регламент из клевера, по которому у тебя вопрос""",
-                reply_markup=back_kb(),
-            )
-            return
-
-        employee_topics_today = await repo.questions.get_questions_count_today(
-            employee_fullname=user.FIO
-        )
-        employee_topics_month = await repo.questions.get_questions_count_last_month(
-            employee_fullname=user.FIO
-        )
-
-        # Выключаем все предыдущие кнопки
-        await disable_previous_buttons(message, state)
-
-        new_topic = await message.bot.create_forum_topic(
-            chat_id=config.tg_bot.forum_id,
-            name=user.FIO
-            if config.tg_bot.division == "НЦК"
-            else f"{user.Division} | {user.FIO}",
-            icon_custom_emoji_id=dicts.topicEmojis["open"],
-        )  # Создание темы
-
-        # Now add the question within the same session
-        new_question = await repo.questions.add_question(
-            employee_chat_id=message.chat.id,
-            employee_fullname=user.FIO,
-            topic_id=new_topic.message_thread_id,
-            start_time=datetime.datetime.now(),
-            question_text=state_data.get("question"),
-            clever_link=clever_link,
-        )  # Добавление вопроса в БД
+    # Now add the question within the same session
+    new_question = await repo.questions.add_question(
+        employee_chat_id=message.chat.id,
+        employee_fullname=employee.FIO,
+        topic_id=new_topic.message_thread_id,
+        start_time=datetime.datetime.now(),
+        question_text=state_data.get("question"),
+    )  # Добавление вопроса в БД
 
     # All database operations are now complete
+
+
     await message.answer(
         """<b>✅ Успешно</b>
-
+    
 Вопрос передан на рассмотрение, в скором времени тебе ответят""",
         reply_markup=cancel_question_kb(token=new_question.Token),
     )
@@ -229,13 +173,11 @@ async def clever_link_handler(message: Message, state: FSMContext, stp_db):
     topic_info_msg = await message.bot.send_message(
         chat_id=config.tg_bot.forum_id,
         message_thread_id=new_topic.message_thread_id,
-        text=f"""Вопрос задает <b>{user.FIO}</b> {'(<a href="https://t.me/' + user.Username + '">лс</a>)' if (user.Username != "Не указан" or user.Username != "Скрыто/не определено") else ""}
+        text=f"""Вопрос задает <b>{employee.FIO}</b> {'(<a href="https://t.me/' + employee.Username + '">лс</a>)' if (employee.Username != "Не указан" or employee.Username != "Скрыто/не определено") else ""}
 
-<b>🗃️ Регламент:</b> <a href='{clever_link}'>тык</a>
-
-<blockquote expandable><b>👔 Должность:</b> {user.Position}
-<b>👑 РГ:</b> {user.Boss}
-
+<blockquote expandable><b>👔 Должность:</b> {employee.Position}
+<b>👑 РГ:</b> {employee.Boss}
+    
 <b>❓ Вопросов:</b> за день {employee_topics_today} / за месяц {employee_topics_month}</blockquote>""",
         disable_web_page_preview=True,
     )
@@ -255,7 +197,7 @@ async def clever_link_handler(message: Message, state: FSMContext, stp_db):
 
     await state.clear()
     logging.info(
-        f"{'[Админ]' if state_data.get('role') or user.Role == 10 else '[Юзер]'} {message.from_user.username} ({message.from_user.id}): Создан новый вопрос {new_question.Token}"
+        f"{'[Админ]' if state_data.get('role') or employee.Role == 10 else '[Юзер]'} {message.from_user.username} ({message.from_user.id}): Создан новый вопрос {new_question.Token}"
     )
 
 
@@ -284,11 +226,15 @@ async def cancel_question(
             chat_id=config.tg_bot.forum_id, message_thread_id=question.TopicId
         )
         await remove_question_timer(bot=callback.bot, question=question, stp_db=stp_db)
-        await callback.bot.send_message(chat_id=config.tg_bot.forum_id, message_thread_id=question.TopicId, text="""<b>🔥 Отмена вопроса</b>
+        await callback.bot.send_message(
+            chat_id=config.tg_bot.forum_id,
+            message_thread_id=question.TopicId,
+            text="""<b>🔥 Отмена вопроса</b>
         
 Специалист отменил вопрос
 
-<i>Вопрос будет удален через 30 секунд</i>""")
+<i>Вопрос будет удален через 30 секунд</i>""",
+        )
         await callback.answer("Вопрос успешно удален")
         await main_cb(callback=callback, state=state, stp_db=stp_db)
     elif not question:

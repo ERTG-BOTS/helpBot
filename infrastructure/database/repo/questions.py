@@ -11,7 +11,7 @@ from infrastructure.database.repo.base import BaseRepo
 class QuestionsRepo(BaseRepo):
     async def add_question(
             self, employee_chat_id: int, employee_fullname: str, topic_id: int,
-            question_text: str, start_time: date, clever_link: str
+            question_text: str, start_time: date,
     ) -> Question:
         """
         Добавляет новый вопрос в базу данных.
@@ -22,7 +22,6 @@ class QuestionsRepo(BaseRepo):
             topic_id (int): ID топика
             question_text (str): Текст вопроса
             start_time (date): Дата начала вопроса
-            clever_link (str): Ссылка на clever
 
         Returns:
             Question: Созданный объект вопроса
@@ -38,7 +37,6 @@ class QuestionsRepo(BaseRepo):
             EmployeeChatId=employee_chat_id,
             QuestionText=question_text,
             StartTime=start_time,
-            CleverLink=clever_link,
             Status="open",
         )
 
@@ -66,27 +64,6 @@ class QuestionsRepo(BaseRepo):
             await self.session.refresh(question)
         return question
 
-    async def update_question_quality(self, token: str, quality: bool, is_duty: bool = False) -> Optional[Question]:
-        """
-        Обновляет качество вопроса.
-
-        Args:
-            token (str): Токен вопроса
-            quality (bool): Оценка качества
-            is_duty (bool): Флаг, указывающий на оценку дежурного
-
-        Returns:
-            Question: Обновленный объект вопроса или None если не найден
-        """
-        question = await self.session.get(Question, token)
-        if question:
-            if is_duty:
-                question.QualityDuty = quality
-            else:
-                question.QualityEmployee = quality
-            await self.session.commit()
-            await self.session.refresh(question)
-        return question
 
     async def update_question_status(self, token: str, status: str) -> Optional[Question]:
         """

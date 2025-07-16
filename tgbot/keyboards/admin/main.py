@@ -21,7 +21,7 @@ def admin_kb() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                text="👶🏻 Стать спецом", callback_data=ChangeRole(role="spec").pack()
+                text="👶🏻 Стать вопрошающим", callback_data=ChangeRole(role="spec").pack()
             ),
         ]
     ]

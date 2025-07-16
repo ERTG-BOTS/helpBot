@@ -136,20 +136,6 @@ def dialog_quality_kb(token: str, role: str = "employee") -> InlineKeyboardMarku
         buttons = [
             [
                 InlineKeyboardButton(
-                    text="👍 Да",
-                    callback_data=QuestionQualitySpecialist(
-                        answer=True, token=token
-                    ).pack(),
-                ),
-                InlineKeyboardButton(
-                    text="👎 Нет",
-                    callback_data=QuestionQualitySpecialist(
-                        answer=False, token=token
-                    ).pack(),
-                ),
-            ],
-            [
-                InlineKeyboardButton(
                     text="🔄 Вернуть вопрос",
                     callback_data=QuestionQualitySpecialist(
                         return_question=True, token=token
@@ -169,16 +155,6 @@ def dialog_quality_kb(token: str, role: str = "employee") -> InlineKeyboardMarku
         ]
     else:
         buttons = [
-            [
-                InlineKeyboardButton(
-                    text="👎 Да",
-                    callback_data=QuestionQualityDuty(answer=False, token=token).pack(),
-                ),
-                InlineKeyboardButton(
-                    text="👍 Нет",
-                    callback_data=QuestionQualityDuty(answer=True, token=token).pack(),
-                ),
-            ],
             [
                 InlineKeyboardButton(
                     text="🔄 Вернуть вопрос",

@@ -140,7 +140,7 @@ async def handle_q_message(message: Message, stp_db):
 
 Это не твой чат!
 
-<i>Твое сообщение не отобразится специалисту</i>""")
+<i>Твое сообщение не отобразится пользователю</i>""")
                     logger.warning(
                         f"[Вопрос] - [Общение] Токен: {question.Token} | Старший: {question.TopicDutyFullname} | Сообщение: {message.text}. Чат принадлежит другому старшему"
                     )
@@ -149,7 +149,7 @@ async def handle_q_message(message: Message, stp_db):
 
 Текущий вопрос уже закрыт!
 
-<i>Твое сообщение не отобразится специалисту</i>""")
+<i>Твое сообщение не отобразится пользователю</i>""")
             logger.warning(
                 f"[Вопрос] - [Общение] Токен: {question.Token} | Старший: {question.TopicDutyFullname} | Сообщение: {message.text}. Чат уже закрыт"
             )
@@ -206,7 +206,7 @@ async def return_q_duty(
 
             await callback.message.answer("""<b>🔓 Вопрос переоткрыт</b>
 
-Можешь писать сообщения, они будут переданы специалисту""")
+Можешь писать сообщения, они будут переданы пользователю""")
             await callback.bot.send_message(
                 chat_id=question.EmployeeChatId,
                 text=f"""<b>🔓 Вопрос переоткрыт</b>
@@ -225,10 +225,10 @@ async def return_q_duty(
             )
         elif employee.FIO in [d.EmployeeFullname for d in active_dialogs]:
             await callback.answer(
-                "У специалиста есть другой открытый вопрос", show_alert=True
+                "У пользователя есть другой открытый вопрос", show_alert=True
             )
             logger.error(
-                f"[Вопрос] - [Переоткрытие] Пользователь {callback.from_user.username} ({callback.from_user.id}): Неудачная попытка переоткрытия, у специалиста {question.EmployeeFullname} есть другой открытый вопрос"
+                f"[Вопрос] - [Переоткрытие] Пользователь {callback.from_user.username} ({callback.from_user.id}): Неудачная попытка переоткрытия, у пользователя {question.EmployeeFullname} есть другой открытый вопрос"
             )
         elif question.Token not in [d.Token for d in available_to_return_questions]:
             await callback.answer(
@@ -242,44 +242,3 @@ async def return_q_duty(
             logger.error(
                 f"[Вопрос] - [Переоткрытие] Пользователь {callback.from_user.username} ({callback.from_user.id}): Неудачная попытка переоткрытия, диалог {question.Token} не закрыт"
             )
-
-
-@topic_router.callback_query(IsTopicMessage() and QuestionQualityDuty.filter())
-async def quality_q_duty(
-    callback: CallbackQuery, callback_data: QuestionQualityDuty, stp_db
-):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        duty: User = await repo.users.get_user(user_id=callback.from_user.id)
-        question: Question = await repo.questions.get_question(
-            token=callback_data.token
-        )
-
-    if question.TopicDutyFullname == duty.FIO:
-        await repo.questions.update_question_quality(
-            token=callback_data.token, quality=callback_data.answer, is_duty=True
-        )
-        await callback.answer("Оценка успешно выставлена ❤️")
-        if callback_data.answer:
-            await callback.message.edit_text(
-                f"""<b>🔒 Вопрос закрыт</b>
-
-<b>{duty.FIO}</b> поставил оценку:
-👎 Специалист <b>мог решить вопрос самостоятельно</b>""",
-                reply_markup=closed_dialog_kb(token=callback_data.token, role="duty"),
-            )
-        else:
-            await callback.message.edit_text(
-                f"""<b>🔒 Вопрос закрыт</b>
-
-<b>{duty.FIO}</b> поставил оценку:
-👍 Специалист <b>не мог решить вопрос самостоятельно</b>""",
-                reply_markup=closed_dialog_kb(token=callback_data.token, role="duty"),
-            )
-
-        logger.info(
-            f"[Вопрос] - [Оценка] Пользователь {callback.from_user.username} ({callback.from_user.id}): Выставлена оценка {callback_data.answer} вопросу {question.Token} от старшего"
-        )
-    else:
-        await callback.answer("Это не твой чат!", show_alert=True)
-        logger.warning(f"[Вопрос] - [Оценка] Пользователь {callback.from_user.username} ({callback.from_user.id}): Неудачная попытка выставить оценку {callback_data.answer} вопросу {question.Token}. Вопрос принадлежит другому старшему")

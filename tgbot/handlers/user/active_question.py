@@ -60,8 +60,7 @@ async def active_question_end(
                     message_thread_id=question.TopicId,
                     text=f"""<b>🔒 Вопрос закрыт</b>
 
-Специалист <b>{employee.FIO}</b> закрыл вопрос
-Оцени, мог ли специалист решить вопрос самостоятельно""",
+<b>{employee.FIO}</b> закрыл вопрос""",
                     reply_markup=dialog_quality_kb(token=question.Token, role="duty"),
                 )
 
@@ -79,15 +78,14 @@ async def active_question_end(
                     text="<b>🔒 Вопрос закрыт</b>", reply_markup=ReplyKeyboardRemove()
                 )
                 await message.answer(
-                    """Ты закрыл вопрос
-Оцени, помогли ли тебе решить вопрос""",
+                    """Ты закрыл вопрос""",
                     reply_markup=dialog_quality_kb(
                         token=question.Token, role="employee"
                     ),
                 )
 
                 logger.info(
-                    f"[Вопрос] - [Закрытие] Пользователь {message.from_user.username} ({message.from_user.id}): Закрыт вопрос {question.Token} со старшим {question.TopicDutyFullname}"
+                    f"[Вопрос] - [Закрытие] Пользователь {message.from_user.username} ({message.from_user.id}): Закрыт вопрос {question.Token} с {question.TopicDutyFullname}"
                 )
             elif question.Status == "closed":
                 await message.reply("<b>🔒 Вопрос был закрыт</b>")
@@ -150,40 +148,5 @@ async def active_question(message: Message, stp_db, active_dialog_token: str = N
 
     logger.info(
         f"[Вопрос] - [Общение] Токен: {question.Token} | Специалист: {question.EmployeeFullname} | Сообщение: {message.text}"
-    )
-
-
-@user_q_router.callback_query(QuestionQualitySpecialist.filter())
-async def dialog_quality_employee(
-    callback: CallbackQuery, callback_data: QuestionQualitySpecialist, stp_db
-):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        question: Question = await repo.questions.get_question(
-            token=callback_data.token
-        )
-        await repo.questions.update_question_quality(
-            token=callback_data.token, quality=callback_data.answer, is_duty=False
-        )
-
-    await callback.answer("Оценка успешно выставлена ❤️")
-    if callback_data.answer:
-        await callback.message.edit_text(
-            """<b>🔒 Вопрос закрыт</b>
-
-Ты поставил оценку:
-👍 Старший <b>помог решить твой вопрос</b>""",
-            reply_markup=closed_dialog_kb(token=callback_data.token, role="employee"),
-        )
-    else:
-        await callback.message.edit_text(
-            """<b>🔒 Вопрос закрыт</b>
-
-Ты поставил оценку:
-👎 Старший <b>не помог решить твой вопрос</b>""",
-            reply_markup=closed_dialog_kb(token=callback_data.token, role="employee"),
-        )
-    logger.info(
-        f"[Вопрос] - [Оценка] Пользователь {callback.from_user.username} ({callback.from_user.id}): Выставлена оценка {callback_data.answer} вопросу {question.Token} от специалиста"
     )
 

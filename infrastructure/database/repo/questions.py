@@ -253,7 +253,7 @@ class QuestionsRepo(BaseRepo):
 
         # Считаем дату два месяца назад
         today = datetime.now()
-        two_months_ago = today - timedelta(days=1)  # Примерно 2 месяца
+        two_months_ago = today - timedelta(days=60)  # Примерно 2 месяца
 
         stmt = select(Question).where(Question.StartTime < two_months_ago)
         result = await self.session.execute(stmt)

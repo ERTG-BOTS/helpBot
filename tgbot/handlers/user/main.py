@@ -124,7 +124,10 @@ async def question_text(message: Message, stp_db, state: FSMContext):
         repo = RequestsRepo(session)
         employee: User = await repo.users.get_user(user_id=message.from_user.id)
 
-    await state.update_data(question=message.text)
+    if message.caption:
+        await state.update_data(question=message.caption)
+    else:
+        await state.update_data(question=message.text)
     await state.update_data(question_message_id=message.message_id)
 
     # Отключаем кнопки на предыдущих шагах

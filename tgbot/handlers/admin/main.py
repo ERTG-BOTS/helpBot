@@ -6,7 +6,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from infrastructure.database.models import User
-from infrastructure.database.repo.requests import RequestsRepo
 from tgbot.config import load_config
 from tgbot.filters.admin import AdminFilter
 from tgbot.filters.topic import IsTopicMessage
@@ -26,17 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @admin_router.message(CommandStart(), ~IsTopicMessage())
-async def admin_start(message: Message, stp_db, state: FSMContext) -> None:
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        user: User = await repo.users.get_user(user_id=message.from_user.id)
-        employee_topics_today = await repo.questions.get_questions_count_today(
-            employee_fullname=user.FIO
-        )
-        employee_topics_month = await repo.questions.get_questions_count_last_month(
-            employee_fullname=user.FIO
-        )
-
+async def admin_start(message: Message, state: FSMContext, user: User) -> None:
     state_data = await state.get_data()
 
     if "role" in state_data:
@@ -72,13 +61,9 @@ async def admin_start(message: Message, stp_db, state: FSMContext) -> None:
 
 @admin_router.callback_query(ChangeRole.filter())
 async def change_role(
-    callback: CallbackQuery, callback_data: ChangeRole, state: FSMContext, stp_db
+    callback: CallbackQuery, callback_data: ChangeRole, state: FSMContext, user: User
 ) -> None:
     await callback.answer("")
-
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        user: User = await repo.users.get_user(user_id=callback.from_user.id)
 
     match callback_data.role:
         case "spec":
@@ -87,20 +72,16 @@ async def change_role(
                 f"[Админ] {callback.from_user.username} ({callback.from_user.id}): Роль изменена с {user.Role} на 1"
             )
 
-    await main_cb(callback, stp_db, state)
+    await main_cb(callback, user, state)
 
 
 @admin_router.callback_query(AdminMenu.filter(F.menu == "reset"))
-async def reset_role_cb(callback: CallbackQuery, state: FSMContext, stp_db) -> None:
+async def reset_role_cb(callback: CallbackQuery, state: FSMContext, user: User) -> None:
     """
     Сброс кастомной роли через клавиатуру
     """
     state_data = await state.get_data()
     await state.clear()
-
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        user: User = await repo.users.get_user(user_id=callback.from_user.id)
 
     await callback.message.edit_text(
         f"""Привет, <b>{user.FIO}</b>!
@@ -117,16 +98,12 @@ async def reset_role_cb(callback: CallbackQuery, state: FSMContext, stp_db) -> N
 
 
 @admin_router.message(Command("reset"))
-async def reset_role_cmd(message: Message, state: FSMContext, stp_db) -> None:
+async def reset_role_cmd(message: Message, state: FSMContext, user: User) -> None:
     """
     Сброс кастомной роли через команду
     """
     state_data = await state.get_data()
     await state.clear()
-
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        user: User = await repo.users.get_user(user_id=message.from_user.id)
 
     await message.answer(
         f"""👋 Привет, <b>{user.FIO}</b>!
@@ -140,5 +117,3 @@ async def reset_role_cmd(message: Message, state: FSMContext, stp_db) -> None:
     logging.info(
         f"[Админ] {message.from_user.username} ({message.from_user.id}): Роль изменена с {state_data.get('role')} на {user.Role} командой"
     )
-
-

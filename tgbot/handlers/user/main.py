@@ -31,11 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 @user_router.message(CommandStart())
-async def main_cmd(message: Message, state: FSMContext, stp_db):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        user: User = await repo.users.get_user(user_id=message.from_user.id)
-
+async def main_cmd(message: Message, state: FSMContext, user: User):
     state_data = await state.get_data()
 
     if user:
@@ -66,18 +62,7 @@ async def main_cmd(message: Message, state: FSMContext, stp_db):
 
 
 @user_router.callback_query(MainMenu.filter(F.menu == "main"))
-async def main_cb(callback: CallbackQuery, stp_db, state: FSMContext):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        user: User = await repo.users.get_user(user_id=callback.from_user.id)
-
-        employee_topics_today = await repo.questions.get_questions_count_today(
-            employee_fullname=user.FIO
-        )
-        employee_topics_month = await repo.questions.get_questions_count_last_month(
-            employee_fullname=user.FIO
-        )
-
+async def main_cb(callback: CallbackQuery, user: User, state: FSMContext):
     state_data = await state.get_data()
 
     await callback.message.edit_text(
@@ -97,11 +82,7 @@ async def main_cb(callback: CallbackQuery, stp_db, state: FSMContext):
 
 
 @user_router.callback_query(MainMenu.filter(F.menu == "ask"))
-async def ask_question(callback: CallbackQuery, stp_db, state: FSMContext):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        employee: User = await repo.users.get_user(user_id=callback.from_user.id)
-
+async def ask_question(callback: CallbackQuery, user: User, state: FSMContext):
     state_data = await state.get_data()
 
     msg = await callback.message.edit_text(
@@ -114,16 +95,14 @@ async def ask_question(callback: CallbackQuery, stp_db, state: FSMContext):
     await state.update_data(messages_with_buttons=[msg.message_id])
     await state.set_state(AskQuestion.question)
     logging.info(
-        f"{'[Админ]' if state_data.get('role') or employee.Role == 10 else '[Юзер]'} {callback.from_user.username} ({callback.from_user.id}): Открыто меню нового вопроса"
+        f"{'[Админ]' if state_data.get('role') or user.Role == 10 else '[Юзер]'} {callback.from_user.username} ({callback.from_user.id}): Открыто меню нового вопроса"
     )
 
 
 @user_router.message(AskQuestion.question)
-async def question_text(message: Message, stp_db, state: FSMContext):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        employee: User = await repo.users.get_user(user_id=message.from_user.id)
-
+async def question_text(
+    message: Message, user: User, repo: RequestsRepo, state: FSMContext
+):
     if message.caption:
         await state.update_data(question=message.caption)
     else:
@@ -136,10 +115,10 @@ async def question_text(message: Message, stp_db, state: FSMContext):
     state_data = await state.get_data()
 
     employee_topics_today = await repo.questions.get_questions_count_today(
-        employee_fullname=employee.FIO
+        employee_fullname=user.FIO
     )
     employee_topics_month = await repo.questions.get_questions_count_last_month(
-        employee_fullname=employee.FIO
+        employee_fullname=user.FIO
     )
 
     # Выключаем все предыдущие кнопки
@@ -147,14 +126,14 @@ async def question_text(message: Message, stp_db, state: FSMContext):
 
     new_topic = await message.bot.create_forum_topic(
         chat_id=config.tg_bot.forum_id,
-        name=employee.FIO,
+        name=user.FIO,
         icon_custom_emoji_id=dicts.topicEmojis["open"],
     )  # Создание темы
 
     # Now add the question within the same session
     new_question = await repo.questions.add_question(
         employee_chat_id=message.chat.id,
-        employee_fullname=employee.FIO,
+        employee_fullname=user.FIO,
         topic_id=new_topic.message_thread_id,
         start_time=datetime.datetime.now(),
         question_text=state_data.get("question"),
@@ -188,15 +167,15 @@ async def question_text(message: Message, stp_db, state: FSMContext):
 
     # Запускаем таймер неактивности для нового вопроса (только если статус "open")
     if new_question.Status == "open" and config.tg_bot.activity_status:
-        start_inactivity_timer(new_question.Token, message.bot, stp_db)
+        start_inactivity_timer(new_question.Token, message.bot, repo)
 
     topic_info_msg = await message.bot.send_message(
         chat_id=config.tg_bot.forum_id,
         message_thread_id=new_topic.message_thread_id,
-        text=f"""Вопрос задает <b>{employee.FIO}</b> {'(<a href="https://t.me/' + employee.Username + '">лс</a>)' if (employee.Username != "Не указан" or employee.Username != "Скрыто/не определено") else ""}
+        text=f"""Вопрос задает <b>{user.FIO}</b> {'(<a href="https://t.me/' + user.Username + '">лс</a>)' if (user.Username != "Не указан" or user.Username != "Скрыто/не определено") else ""}
 
-<blockquote expandable><b>👔 Должность:</b> {employee.Position}
-<b>👑 РГ:</b> {employee.Boss}
+<blockquote expandable><b>👔 Должность:</b> {user.Position}
+<b>👑 РГ:</b> {user.Boss}
     
 <b>❓ Вопросов:</b> за день {employee_topics_today} / за месяц {employee_topics_month}</blockquote>""",
         disable_web_page_preview=True,
@@ -217,19 +196,17 @@ async def question_text(message: Message, stp_db, state: FSMContext):
 
     await state.clear()
     logging.info(
-        f"{'[Админ]' if state_data.get('role') or employee.Role == 10 else '[Юзер]'} {message.from_user.username} ({message.from_user.id}): Создан новый вопрос {new_question.Token}"
+        f"{'[Админ]' if state_data.get('role') or user.Role == 10 else '[Юзер]'} {message.from_user.username} ({message.from_user.id}): Создан новый вопрос {new_question.Token}"
     )
 
 
 @user_router.callback_query(CancelQuestion.filter(F.action == "cancel"))
 async def cancel_question(
-    callback: CallbackQuery, callback_data: CancelQuestion, stp_db, state: FSMContext
+    callback: CallbackQuery, callback_data: CancelQuestion, repo: RequestsRepo, state: FSMContext
 ):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        question: Question = await repo.questions.get_question(
+    question: Question = await repo.questions.get_question(
             token=callback_data.token
-        )
+    )
 
     if (
         question
@@ -245,7 +222,7 @@ async def cancel_question(
         await callback.bot.close_forum_topic(
             chat_id=config.tg_bot.forum_id, message_thread_id=question.TopicId
         )
-        await remove_question_timer(bot=callback.bot, question=question, stp_db=stp_db)
+        await remove_question_timer(bot=callback.bot, question=question, repo=repo)
         await callback.bot.send_message(
             chat_id=config.tg_bot.forum_id,
             message_thread_id=question.TopicId,
@@ -256,9 +233,9 @@ async def cancel_question(
 <i>Вопрос будет удален через 30 секунд</i>""",
         )
         await callback.answer("Вопрос успешно удален")
-        await main_cb(callback=callback, state=state, stp_db=stp_db)
+        await main_cb(callback=callback, state=state, repo=repo)
     elif not question:
         await callback.answer("Не удалось найти отменяемый вопрос")
-        await main_cb(callback=callback, state=state, stp_db=stp_db)
+        await main_cb(callback=callback, state=state, repo=repo)
     else:
         await callback.answer("Вопрос не может быть отменен. Он уже в работе")

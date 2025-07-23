@@ -27,16 +27,13 @@ logger = logging.getLogger(__name__)
 
 
 @topic_cmds_router.message(IsTopicMessageWithCommand("end"))
-async def end_q_cmd(message: Message, stp_db):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        duty: User = await repo.users.get_user(message.from_user.id)
-        question: Question = await repo.questions.get_question(
-            topic_id=message.message_thread_id
-        )
+async def end_q_cmd(message: Message, repo: RequestsRepo, user: User):
+    question: Question = await repo.questions.get_question(
+        topic_id=message.message_thread_id
+    )
 
     if question is not None:
-        if question.Status != "closed" and question.TopicDutyFullname == duty.FIO:
+        if question.Status != "closed" and question.TopicDutyFullname == user.FIO:
             # Останавливаем таймер неактивности
             stop_inactivity_timer(question.Token)
 
@@ -74,14 +71,14 @@ async def end_q_cmd(message: Message, stp_db):
 
             await message.bot.send_message(
                 chat_id=employee.ChatId,
-                text=f"""<b>{duty.FIO}</b> закрыл вопрос""",
+                text=f"""<b>{user.FIO}</b> закрыл вопрос""",
                 reply_markup=dialog_quality_kb(token=question.Token, role="employee"),
             )
 
             logger.info(
                 f"[Вопрос] - [Закрытие] Пользователь {message.from_user.username} ({message.from_user.id}): Закрыт вопрос {question.Token} со специалистом {question.EmployeeFullname}"
             )
-        elif question.Status != "closed" and question.TopicDutyFullname != duty.FIO:
+        elif question.Status != "closed" and question.TopicDutyFullname != user.FIO:
             await message.reply("""<b>⚠️ Предупреждение</b>
 
 Это не твой чат!
@@ -109,67 +106,64 @@ async def end_q_cmd(message: Message, stp_db):
 
 
 @topic_cmds_router.message(IsTopicMessageWithCommand("release"))
-async def release_q_cmd(message: Message, stp_db):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        duty: User = await repo.users.get_user(message.from_user.id)
-        question: Question = await repo.questions.get_question(
-            topic_id=message.message_thread_id
-        )
+async def release_q_cmd(message: Message, repo: RequestsRepo, user: User):
+    question: Question = await repo.questions.get_question(
+        topic_id=message.message_thread_id
+    )
 
-        if question is not None:
-            if (
-                question.TopicDutyFullname is not None
-                and question.TopicDutyFullname == duty.FIO
-            ):
-                await repo.questions.update_question_duty(
-                    token=question.Token, topic_duty=None
-                )
-                await repo.questions.update_question_status(
-                    token=question.Token, status="open"
-                )
+    if question is not None:
+        if (
+            question.TopicDutyFullname is not None
+            and question.TopicDutyFullname == user.FIO
+        ):
+            await repo.questions.update_question_duty(
+                token=question.Token, topic_duty=None
+            )
+            await repo.questions.update_question_status(
+                token=question.Token, status="open"
+            )
 
-                employee: User = await repo.users.get_user(
-                    fullname=question.EmployeeFullname
-                )
+            employee: User = await repo.users.get_user(
+                fullname=question.EmployeeFullname
+            )
 
-                await message.bot.edit_forum_topic(
-                    chat_id=config.tg_bot.forum_id,
-                    message_thread_id=question.TopicId,
-                    icon_custom_emoji_id=dicts.topicEmojis["open"],
-                )
-                await message.answer("""<b>🕊️ Вопрос освобожден</b>
+            await message.bot.edit_forum_topic(
+                chat_id=config.tg_bot.forum_id,
+                message_thread_id=question.TopicId,
+                icon_custom_emoji_id=dicts.topicEmojis["open"],
+            )
+            await message.answer("""<b>🕊️ Вопрос освобожден</b>
 
 Для взятия вопроса в работу напишите сообщение в эту тему""")
 
-                await message.bot.send_message(
-                    chat_id=employee.ChatId,
-                    text=f"""<b>🕊️ Старший покинул чат</b>
+            await message.bot.send_message(
+                chat_id=employee.ChatId,
+                text=f"""<b>🕊️ Старший покинул чат</b>
 
-Старший <b>{duty.FIO}</b> освободил вопрос. Ожидай повторного подключения старшего""",
-                )
-                logger.info(
-                    f"[Вопрос] - [Освобождение] Пользователь {message.from_user.username} ({message.from_user.id}): Вопрос {question.Token} освобожден"
-                )
-            elif (
-                question.TopicDutyFullname is not None
-                and question.TopicDutyFullname != duty.FIO
-            ):
-                await message.reply("""<b>⚠️ Предупреждение</b>
+Старший <b>{user.FIO}</b> освободил вопрос. Ожидай повторного подключения старшего""",
+            )
+            logger.info(
+                f"[Вопрос] - [Освобождение] Пользователь {message.from_user.username} ({message.from_user.id}): Вопрос {question.Token} освобожден"
+            )
+        elif (
+            question.TopicDutyFullname is not None
+            and question.TopicDutyFullname != user.FIO
+        ):
+            await message.reply("""<b>⚠️ Предупреждение</b>
 
 Это не твой чат!
 
 <i>Твое сообщение не отобразится пользователю</i>""")
-                logger.warning(
-                    f"[Вопрос] - [Освобождение] Пользователь {message.from_user.username} ({message.from_user.id}): Попытка закрытия вопроса {question.Token} неуспешна. Вопрос принадлежит другому старшему"
-                )
-            elif question.TopicDutyFullname is None:
-                await message.reply("""<b>⚠️ Предупреждение</b>
+            logger.warning(
+                f"[Вопрос] - [Освобождение] Пользователь {message.from_user.username} ({message.from_user.id}): Попытка закрытия вопроса {question.Token} неуспешна. Вопрос принадлежит другому старшему"
+            )
+        elif question.TopicDutyFullname is None:
+            await message.reply("""<b>⚠️ Предупреждение</b>
 
 Это чат сейчас никем не занят!""")
-                logger.warning(
-                    f"[Вопрос] - [Освобождение] Пользователь {message.from_user.username} ({message.from_user.id}): Попытка освобождения вопроса {question.Token} неуспешна. Вопрос {question.Token} никем не занят"
-                )
+            logger.warning(
+                f"[Вопрос] - [Освобождение] Пользователь {message.from_user.username} ({message.from_user.id}): Попытка освобождения вопроса {question.Token} неуспешна. Вопрос {question.Token} никем не занят"
+            )
         else:
             await message.answer("""<b>⚠️ Ошибка</b>
 
@@ -184,35 +178,29 @@ async def release_q_cmd(message: Message, stp_db):
 
 
 @topic_cmds_router.callback_query(FinishedQuestion.filter(F.action == "release"))
-async def release_q_cb(callback: CallbackQuery, stp_db):
-    async with stp_db() as session:
-        repo = RequestsRepo(session)
-        question: Question = await repo.questions.get_question(
-            topic_id=callback.message.message_thread_id
-        )
+async def release_q_cb(callback: CallbackQuery, repo: RequestsRepo):
+    question: Question = await repo.questions.get_question(
+        topic_id=callback.message.message_thread_id
+    )
 
-        if question is not None:
-            await repo.questions.update_question_duty(
-                token=question.Token, topic_duty=None
-            )
-            await repo.questions.update_question_status(
-                token=question.Token, status="open"
-            )
+    if question is not None:
+        await repo.questions.update_question_duty(token=question.Token, topic_duty=None)
+        await repo.questions.update_question_status(token=question.Token, status="open")
 
-            await callback.message.answer("""<b>🕊️ Вопрос освобожден</b>
+        await callback.message.answer("""<b>🕊️ Вопрос освобожден</b>
 
 Для взятия вопроса в работу напишите сообщение в эту тему""")
-            logger.info(
-                f"[Вопрос] - [Освобождение] Пользователь {callback.from_user.username} ({callback.from_user.id}): Вопрос {question.Token} освобожден"
-            )
-        else:
-            await callback.message.answer("""<b>⚠️ Ошибка</b>
+        logger.info(
+            f"[Вопрос] - [Освобождение] Пользователь {callback.from_user.username} ({callback.from_user.id}): Вопрос {question.Token} освобожден"
+        )
+    else:
+        await callback.message.answer("""<b>⚠️ Ошибка</b>
 
 Не удалось найти текущую тему в базе, закрываю""")
-            await callback.bot.close_forum_topic(
-                chat_id=config.tg_bot.forum_id,
-                message_thread_id=callback.message.message_thread_id,
-            )
-            logger.error(
-                f"[Вопрос] - [Освобождение] Пользователь {callback.from_user.username} ({callback.from_user.id}): Попытка освобождения вопроса неуспешна. Не удалось найти вопрос в базе с TopicId = {callback.message.message_thread_id}"
-            )
+        await callback.bot.close_forum_topic(
+            chat_id=config.tg_bot.forum_id,
+            message_thread_id=callback.message.message_thread_id,
+        )
+        logger.error(
+            f"[Вопрос] - [Освобождение] Пользователь {callback.from_user.username} ({callback.from_user.id}): Попытка освобождения вопроса неуспешна. Не удалось найти вопрос в базе с TopicId = {callback.message.message_thread_id}"
+        )

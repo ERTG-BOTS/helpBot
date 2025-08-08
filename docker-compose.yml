@@ -1,12 +1,13 @@
 services:
   bot:
-    image: "questioner-bot"
+    container_name: help_bot
+    image: "help-bot"
     stop_signal: SIGINT
     build:
       context: .
-    working_dir: "/usr/src/app/questioner-bot"
+    working_dir: "/usr/src/app/help-bot"
     volumes:
-      - .:/usr/src/app/questioner-bot
+      - .:/usr/src/app/help-bot
     command: uv run bot.py
     restart: always
     env_file:

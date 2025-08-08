@@ -1,12 +1,12 @@
 FROM python:3.13-slim
 
-WORKDIR /usr/src/app/questioner-bot
+WORKDIR /usr/src/app/help-bot
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy project files first for better caching
-COPY pyproject.toml uv.lock* /usr/src/app/questioner-bot/
+COPY pyproject.toml uv.lock* /usr/src/app/help-bot/
 
 # Install system dependencies and Microsoft ODBC driver
 RUN apt-get update && \
@@ -25,7 +25,7 @@ RUN apt-get update && \
 RUN uv sync --frozen
 
 # Copy application code
-COPY . /usr/src/app/questioner-bot
+COPY . /usr/src/app/help-bot
 
 # Set the PATH to include the virtual environment
-ENV PATH="/usr/src/app/questioner-bot/.venv/bin:$PATH"
+ENV PATH="/usr/src/app/help-bot/.venv/bin:$PATH"
